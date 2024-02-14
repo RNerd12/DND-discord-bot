@@ -47,54 +47,36 @@ class FirebaseClient:
         gm: Union[discord.User, discord.Member],
         time: str,
     ):
-        session_time = None
         if time == "now":
             session_time = datetime.now(timezone.utc)
-
-        if not session_time:
-            try:
-                session_time = datetime.utcfromtimestamp(int(time)).replace(
-                    tzinfo=timezone.utc
-                )
-            except ValueError:
-                pass
-
-        if not session_time:
-            try:
-                session_time = datetime.fromisoformat(time).replace(tzinfo=timezone.utc)
-            except ValueError:
-                pass
-
-        if not session_time:
-            raise ValueError(f"Unable to parse time `{time}`.")
-
+        else:
+            session_time = datetime.utcfromtimestamp(int(time)).replace(tzinfo=timezone.utc)
         players.append(gm)
         self.log_players(collection, players)
         doc_ref = collection.document(str(gm.id))
         doc_dict = doc_ref.get().to_dict()
-        sessions_dmed = doc_dict["sessions_dmed"]
+        sessions_dmed = doc_dict['sessions_dmed']
         latest_session_dmed = max(
             session_time.astimezone(timezone.utc),
-            doc_dict["latest_session_dmed"].astimezone(timezone.utc),
+            doc_dict['latest_session_dmed'].astimezone(timezone.utc),
         )
-        doc_ref.update(
-            {
-                "sessions_dmed": sessions_dmed + 1,
-                "latest_session_dmed": latest_session_dmed,
-            }
-        )
+        doc_ref.update({
+            'sessions_dmed': sessions_dmed+1,
+            'latest_session_dmed': latest_session_dmed
+        })
         for player in players:
             doc_ref = collection.document(str(player.id))
             doc_data = doc_ref.get().to_dict()
-            sessions = doc_data["sessions_played"]
+            sessions = doc_data['sessions_played']
             latest_session_time = max(
                 session_time.astimezone(timezone.utc),
-                doc_data["latest_session"].astimezone(timezone.utc),
+                doc_data['latest_session'].astimezone(timezone.utc),
             )
-            doc_ref.update(
-                {"sessions_played": sessions + 1, "latest_session": latest_session_time}
-            )
-
+            doc_ref.update({
+                'sessions_played': sessions+1,
+                'latest_session': latest_session_time
+            })
+    
     def get_inactive_players(self, collection: CollectionReference, players: list):
         inactive_players = []
         cur_date = datetime.now(timezone.utc)
