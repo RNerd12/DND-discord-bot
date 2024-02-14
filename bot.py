@@ -1,3 +1,4 @@
+import traceback
 import discord
 from discord.ext import commands
 import Secrets
@@ -161,7 +162,11 @@ async def log_session(ctx: commands.Context, time, *players: discord.Member):
         print("No players entered")
     else:
         fcollection = fclient.get_collection(str(ctx.guild.id))
-        fclient.log_session(fcollection, list(players), ctx.author, time)
+        try:
+            fclient.log_session(fcollection, list(players), ctx.author, time)
+        except ValueError as e:
+            await send_message(ctx, str(e))
+            traceback.print_exc()
         message = "Session logged for:\n"
         ps = [i.id for i in players]
         print(f"logged session for : {ps}")
