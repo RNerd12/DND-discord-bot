@@ -270,7 +270,7 @@ async def purge_inactive_gm(ctx: commands.Context):
     print("-" * 50)
 
 @bot.command(name="activityreport")
-async def role_cleanup(ctx: commands.Context):
+async def activity_report(ctx: commands.Context):
     print("-" * 50)
     mod_roles = list(get_roles(ctx, "mod_role"))
     if mod_roles[0] not in ctx.author.roles:
