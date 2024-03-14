@@ -269,5 +269,66 @@ async def purge_inactive_gm(ctx: commands.Context):
         await send_message(ctx, "set valid mod, gm and suspended roles!")
     print("-" * 50)
 
+@bot.command(name="activityreport")
+async def role_cleanup(ctx: commands.Context):
+    print("-" * 50)
+    mod_roles = list(get_roles(ctx, "mod_role"))
+    if mod_roles[0] not in ctx.author.roles:
+        print("insufficient permissions")
+        await send_message(ctx, "you must be a mod to run this command")
+        return
+    fcollection = fclient.get_collection(str(ctx.guild.id))
+    # Get user IDs from Firebase database
+    firebase_user_ids = set([doc.id for doc in fcollection.stream()])
+    
+    # Get user IDs from current members of the server
+    server_user_ids = set([str(member.id) for member in ctx.guild.members])
+
+    # Unified list with no repeats
+    unified_user_ids = firebase_user_ids.union(server_user_ids)
+    player_roles = list(get_roles(ctx, "player_role"))
+    suspended_roles = list(get_roles(ctx, "suspended_role"))
+    message = "Discord ID,Discord Name,Current Status,Number of Sessions,Last Session/Joining Date\n"
+    for unified_user_id in unified_user_ids:
+        doc = fcollection.document(unified_user_id)
+        member = ctx.guild.get_member(int(unified_user_id))
+        if doc.get().exists:
+            data = doc.get().to_dict()
+            player_name = data.get('player_name')
+            message += f'{doc.id}, {player_name}'
+            if member is None:
+                message += f", Left The Server"
+            elif any(role in member.roles for role in suspended_roles):
+                message += f", Suspended"
+            else:
+                message += f", Member"
+            sessions_played = int(data.get('sessions_played'))
+            latest_session = data.get('latest_session')
+            latest_session_dmed = data.get('latest_session_dmed')
+            latest_session_time = max(latest_session, latest_session_dmed)
+            if sessions_played != 0:
+                message += f", Logged sessions: {sessions_played}, Last session: {latest_session_time}\n"
+            else:
+                message += f", No sessions logged, Joined Server: {latest_session_time}\n"
+        else:
+            message += f"{member.id}, {member.name}"
+            if len(member.roles) == 1:
+                message += f", Didn't Pick Any Roles"
+            elif not any(role in member.roles for role in player_roles):
+                message += f", Didn't Pick Player Roles"
+            else:
+                message += f", Member Not Loaded"
+            message += f", Not Applicable, Joined Server: {member.joined_at}\n"
+    # Write CSV data to a file
+    filename = "activity_report.csv"
+    with open(filename, mode='w', newline='', encoding='utf-8') as file:
+        file.write(message)
+    
+    # Send the CSV file as an attachment
+    await ctx.send("Here's your Activity Report:", file=discord.File(filename))
+
+    # Delete the file after sending
+    import os
+    os.remove(filename)
 
 bot.run(Secrets.BOT_TOKEN)
