@@ -129,19 +129,14 @@ async def set_reactrolemessage(ctx: commands.Context, channel_id: int, message_i
 @bot.command(name="loadmembers")
 async def set_logger(ctx: commands.Context):
     print("-" * 50)
-    player_roles = list(get_roles(ctx, "player_role"))
-    if player_roles:
-        dnd_players = [
-            i
-            for i in ctx.guild.members
-            for player_role in player_roles
-            if (not i.bot) and (player_role in i.roles)
-        ]
-        count = log_firebase(ctx, dnd_players)
-        print(f"{count} players logged")
-        await send_message(ctx, f"{count} players logged")
-    else:
-        await send_message(ctx, "Player role not set, set it with !setplayerrole")
+    dnd_players = [
+        i
+        for i in ctx.guild.members
+        if (not i.bot)
+    ]
+    count = log_firebase(ctx, dnd_players)
+    print(f"{count} players logged")
+    await send_message(ctx, f"{count} players logged")
     print("-" * 50)
 
 
@@ -191,7 +186,7 @@ async def purge_inactive(ctx: commands.Context):
             [
                 i
                 for i in all_current_members
-                if any(player_role in player_roles for player_role in i.roles) and (mod_roles[0] not in i.roles) and (not i.bot)
+                if (not any(suspended_role in suspended_roles for suspended_role in i.roles)) and (mod_roles[0] not in i.roles) and (not i.bot)
             ]
         )
         fcollection = fclient.get_collection(str(ctx.guild.id))
