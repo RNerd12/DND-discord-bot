@@ -336,15 +336,4 @@ async def activity_report(ctx: commands.Context):
     import os
     os.remove(filename)
 
-@bot.command(name="send_dm")
-async def on_message(ctx: commands.Context):
-    # Extract the IDs of the members you want to send messages to
-    member_ids = [329626092593741825]  # Replace with actual member IDs
-
-    # Loop through the member IDs and send a direct message to each member
-    for member_id in member_ids:
-        member = ctx.guild.get_member(member_id)
-        if member:
-            await member.send("This is a direct message from the bot!")
-
 bot.run(Secrets.BOT_TOKEN)
