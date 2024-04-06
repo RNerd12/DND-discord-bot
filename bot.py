@@ -184,19 +184,19 @@ async def purge_inactive(ctx: commands.Context):
     player_roles = list(get_roles(ctx, "player_role"))
     gm_roles = list(get_roles(ctx, "gm_role"))
     suspended_roles = list(get_roles(ctx, "suspended_role"))
+    all_current_members = ctx.guild.members
     if player_roles and mod_roles and gm_roles and suspended_roles:
         test_players = []
-        for player_role in player_roles:
-            test_players.extend(
-                [
-                    i
-                    for i in ctx.guild.members
-                    if (player_role in i.roles) and (mod_roles[0] not in i.roles) and (not i.bot)
-                ]
-            )
+        test_players.extend(
+            [
+                i
+                for i in all_current_members
+                if any(player_role in player_roles for player_role in i.roles) and (mod_roles[0] not in i.roles) and (not i.bot)
+            ]
+        )
         fcollection = fclient.get_collection(str(ctx.guild.id))
         inactive = fclient.get_inactive_players(fcollection, test_players)
-        message = "purged : \n"
+        message = "new inactive players : \n"
         for player in inactive:
             await player.remove_roles(*player_roles, *gm_roles)
             await player.add_roles(*suspended_roles)
@@ -207,16 +207,7 @@ async def purge_inactive(ctx: commands.Context):
         print("set valid player, mod, gm and suspended roles!")
         await send_message(ctx, "set valid player, mod, gm and suspended roles!")
     print("-" * 50)
-
-
-@bot.command(name="rolecleanup")
-async def role_cleanup(ctx: commands.Context):
     print("-" * 50)
-    mod_roles = list(get_roles(ctx, "mod_role"))
-    if mod_roles[0] not in ctx.author.roles:
-        print("insufficient permissions")
-        await send_message(ctx, "you must be a mod to run this command")
-        return
     reactrole_channel_id = get_preference(ctx.guild.id, "reactrole_channel")
     reactrole_message_id = get_preference(ctx.guild.id, "reactrole_message")
     try:
@@ -225,10 +216,9 @@ async def role_cleanup(ctx: commands.Context):
         reactrole_message = await reactrole_channel.fetch_message(reactrole_message_id)
     except discord.NotFound:
         await ctx.send("Message not found.")
-    suspended_roles = list(get_roles(ctx, "suspended_role"))
     for reaction in reactrole_message.reactions:
         async for user in reaction.users():
-            member = ctx.guild.get_member(user.id)
+            member = get_member_by_id(user.id, all_current_members)
             if member is None or any(role in member.roles for role in suspended_roles):
                 try:
                     print(f"removed {reaction.emoji} reaction for {user.global_name}")
@@ -236,6 +226,21 @@ async def role_cleanup(ctx: commands.Context):
                 except discord.Forbidden:
                     await ctx.send(f"I don't have the necessary permissions to remove reactions for {user.display_name}.")
     await ctx.send(f"Removed reactions from all users with the {suspended_roles[0].name} role on the {reactrole_message.jump_url} message.")
+    for member in all_current_members:
+        if any(role in member.roles for role in suspended_roles):
+            try:
+                await member.send("Greetings from B'lore & Beyond! We noticed that you have not participated in any Tabletop Roleplaying Games sessions in the past 60 days, and therefore we have assigned you the Inactive role on the server. \nHowever, this role only restricts your access to the questboard text channel, Game Room voice channel and all channels under the \"Game Rooms\" category. You are free to chat everywhere else as you did before.\nIf you are interested in participating in TTRPG sessions on the server, tag Moderators in any of the server chats expressing the same. We will promptly remove your Inactive role, and you will be free to pick your roles again by reacting to the following message: {reactrole_message.jump_url} and restoring your access to the aforementioned channels. Happy Rolling! :)")
+                print(f"sent direct message reminder to {member.name}")
+            except discord.Forbidden:
+                print(f"Cannot send messages to user {member.name}. They may have blocked the bot or disabled DMs.")
+    print("-" * 50)
+
+# Function to get member by ID from the list
+def get_member_by_id(member_id: int, guild_members: list):
+    for member in guild_members:
+        if member.id == member_id:
+            return member
+    return None
 
 @bot.command(name="purgeinactivegm")
 async def purge_inactive_gm(ctx: commands.Context):
